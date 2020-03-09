@@ -3,6 +3,7 @@
 from __future__ import print_function
 import pickle
 import os.path
+import requests
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -10,16 +11,13 @@ from google.auth.transport.requests import Request
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/tasks.readonly']
 
-def main():
-    """Shows basic usage of the Tasks API.
-    Prints the title and ID of the first 10 task lists.
-    """
-    
+
+def getService():
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    
+
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
             creds = pickle.load(token)
@@ -34,19 +32,36 @@ def main():
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
-    
+
     service = build('tasks', 'v1', credentials=creds)
-    
+
+    return service
+
+
+def main():
+    service = getService()
+
     # Call the Tasks API
     results = service.tasklists().list(maxResults=10).execute()
     items = results.get('items', [])
-    
+
+    tasks = service.tasks().list(tasklist=items[1]["id"]).execute().get('items')
+
+    # print(tasks)
+    if not tasks:
+        print("No tasks found")
+    else:
+        print("Tasks")
+        for item in tasks:
+            print(item['title'])
+
     if not items:
         print('No task lists found.')
     else:
         print('Task lists:')
         for item in items:
             print(u'{0} ({1})'.format(item['title'], item['id']))
+
 
 if __name__ == '__main__':
     main()

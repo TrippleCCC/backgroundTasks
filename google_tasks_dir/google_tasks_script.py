@@ -7,9 +7,13 @@ import requests
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from assignment_fetcher import getListOfAllAssignments
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/tasks.readonly']
+SCOPES = ['https://www.googleapis.com/auth/tasks.readonly', 'https://www.googleapis.com/auth/tasks']
+
+task_list_name = "Canvas Assignments"
+task_list_id = "bFZOUmp4azFMTmxTM2RuaQ"
 
 
 def getService():
@@ -38,29 +42,59 @@ def getService():
     return service
 
 
+def getPreviousAssignmentsNames(service) -> list:
+    tasks = service.tasks().list(tasklist=task_list_id).execute().get('items')
+    previous_assignment_names = list()
+    if not tasks:
+        return []
+    else:
+        for item in tasks:
+            previous_assignment_names.append(item["title"])
+    return previous_assignment_names
+
+
+def getNewAssignments(service) -> list:
+    list_of_assignments = getListOfAllAssignments()
+    list_of_assignment_names = getPreviousAssignmentsNames(service)
+
+    # Filter the fetched assignments by name
+    predicate = lambda assignment: assignment.assignment_name not in list_of_assignment_names
+    return list(filter(predicate, list_of_assignments))
+
+def addAssignmentsToTaskList(service):
+    assignments = getNewAssignments(service)
+    print(len(assignments))
+    for assignment in assignments:
+        print(assignment.assignment_name)
+        result = service.tasks().insert(tasklist=task_list_id, body=assignment.convertToTaskRequest()).execute()
+        print(assignment.convertToTaskRequest())
+
 def main():
     service = getService()
+    addAssignmentsToTaskList(service)
 
     # Call the Tasks API
-    results = service.tasklists().list(maxResults=10).execute()
-    items = results.get('items', [])
-
-    tasks = service.tasks().list(tasklist=items[1]["id"]).execute().get('items')
-
+    # results = service.tasklists().list(maxResults=10).execute()
+    # items = results.get('items', [])
+    #
+    # print(items[1]["id"])
+    #
+    # tasks = service.tasks().list(tasklist=task_list_id).execute().get('items')
+    #
     # print(tasks)
-    if not tasks:
-        print("No tasks found")
-    else:
-        print("Tasks")
-        for item in tasks:
-            print(item['title'])
-
-    if not items:
-        print('No task lists found.')
-    else:
-        print('Task lists:')
-        for item in items:
-            print(u'{0} ({1})'.format(item['title'], item['id']))
+    # if not tasks:
+    #     print("No tasks found")
+    # else:
+    #     print("Tasks")
+    #     for item in tasks:
+    #         print(item['title'])
+    #
+    # if not items:
+    #     print('No task lists found.')
+    # else:
+    #     print('Task lists:')
+    #     for item in items:
+    #         print(u'{0} ({1})'.format(item['title'], item['id']))
 
 
 if __name__ == '__main__':
